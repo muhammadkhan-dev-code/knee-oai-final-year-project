@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* ============================================================
+   BRAND COLOR TOKENS
+   Primary:   #075344 (dark)  #0d4239 (mid)  #19745f (med)
+   Light:     #e2f2ef (tint)  #dceae6 (border) #f4faf7 (bg)
+============================================================ */
+:root {
+  --brand-900: #075344;
+  --brand-800: #0d4239;
+  --brand-700: #19745f;
+  --brand-600: #278263;
+  --brand-500: #357B62;
+  --brand-200: #8dbba5;
+  --brand-100: #dceae6;
+  --brand-50:  #e2f2ef;
+  --brand-bg:  #f4f7f6;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+}
+
+/* Custom scrollbar — brand tinted */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f4f7f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8dbba5;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #357B62;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+/* Responsive table helper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
