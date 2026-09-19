@@ -17,10 +17,9 @@ const emptyPatient = {
   age: '',
   gender: '',
   patientId: '',
-  contactNumber: '',
-  email: '',
   clinicalNotes: ''
 }
+
 
 const allowedTypes = [
   'image/jpeg',
@@ -150,12 +149,7 @@ export default function AnalyzePage () {
       // FastAPI expects "image"
       formData.append('image', xrayFile)
 
-      console.log('================================')
-      console.log('Sending X-Ray to AI backend')
-      console.log('File:', xrayFile.name)
-      console.log('Size:', xrayFile.size)
-      console.log('Type:', xrayFile.type)
-      console.log('================================')
+      console.log('Sending X-Ray to AI backend:', xrayFile.name)
 
       const response = await axios.post(
         'http://localhost:8000/predict',
@@ -165,117 +159,61 @@ export default function AnalyzePage () {
         }
       )
 
-      console.log('================================')
-      console.log('AI RESPONSE')
-      console.log(response.data)
-      console.log('================================')
-
       const analysis = response.data
 
       if (!analysis) {
-        throw new Error(
-          'No response received from AI model.'
-        )
+        throw new Error('No response received from AI model.')
       }
 
-      // ==================================================
-      // ORIGINAL IMAGE PREVIEW
-      // ==================================================
-
-      // Uploaded image ko browser-readable URL mein convert
+      // Convert local file to previewable Object URL
       const originalImage = URL.createObjectURL(xrayFile)
-
-      // ==================================================
-      // HEATMAP
-      // ==================================================
 
       const heatmapImage = analysis.heatmap
         ? `data:image/jpeg;base64,${analysis.heatmap}`
         : null
 
-      console.log('Heatmap:', heatmapImage)
-      // ==================================================
-// SAVE ANALYSIS IN RECENT ANALYSES
-// ==================================================
+      // Save analysis in recent history
+      const newAnalysis = {
+        id: Date.now(),
+        patient: {
+          ...patientData,
+          patientId: patientData.patientId || `PID-${Math.floor(100000 + Math.random() * 900000)}`,
+          fileName: xrayFile.name,
+          originalImage: originalImage
+        },
+        analysis: {
+          predicted_category: analysis.predicted_category,
+          confidence: analysis.confidence,
+          class_probabilities: analysis.class_probabilities,
+          heatmap: heatmapImage
+        },
+        createdAt: new Date().toISOString()
+      }
 
-const newAnalysis = {
-  id: Date.now(),
+      const existingAnalyses =
+        JSON.parse(localStorage.getItem('recentAnalyses')) || []
 
-  patient: {
-    ...patientData,
-    fileName: xrayFile.name,
-    originalImage: originalImage
-  },
+      localStorage.setItem(
+        'recentAnalyses',
+        JSON.stringify([
+          newAnalysis,
+          ...existingAnalyses
+        ])
+      )
 
-  analysis: {
-    predicted_category: analysis.predicted_category,
-    confidence: analysis.confidence,
-    class_probabilities: analysis.class_probabilities,
-    heatmap: heatmapImage
-  },
-
-  createdAt: new Date().toISOString()
-}
-
-const existingAnalyses =
-  JSON.parse(localStorage.getItem('recentAnalyses')) || []
-
-localStorage.setItem(
-  'recentAnalyses',
-  JSON.stringify([
-    newAnalysis,
-    ...existingAnalyses
-  ])
-)
-
-console.log('Saved to Recent Analyses:', newAnalysis)
-
-      // ==================================================
-      // REPORT PAGE PAR DATA SEND
-      // ==================================================
-
+      // Navigate to report with full state
       navigate('/report', {
         state: {
-          patient: {
-            ...patientData,
-            fileName: xrayFile.name,
-            originalImage: originalImage
-          },
-
-          analysis: {
-            predicted_category:
-              analysis.predicted_category,
-
-            confidence:
-              analysis.confidence,
-
-            class_probabilities:
-              analysis.class_probabilities,
-
-            heatmap:
-              heatmapImage
-          }
+          patient: newAnalysis.patient,
+          analysis: newAnalysis.analysis,
+          createdAt: newAnalysis.createdAt
         }
       })
 
     } catch (error) {
-      console.error(
-        'AI Analysis Error:',
-        error
-      )
+      console.error('AI Analysis Error:', error)
 
-      console.log(
-        'STATUS:',
-        error.response?.status
-      )
-
-      console.log(
-        'DATA:',
-        error.response?.data
-      )
-
-      const detail =
-        error.response?.data?.detail
+      const detail = error.response?.data?.detail
 
       if (Array.isArray(detail)) {
         setApiError(
@@ -288,7 +226,7 @@ console.log('Saved to Recent Analyses:', newAnalysis)
           detail ||
           error.response?.data?.message ||
           error.message ||
-          'Unable to analyze the X-ray. Please try again.'
+          'Unable to analyze the X-ray. Please verify the AI backend server is running.'
         )
       }
 
@@ -314,7 +252,6 @@ console.log('Saved to Recent Analyses:', newAnalysis)
 
   return (
     <DashboardShell>
-
       <motion.div
         initial={{
           opacity: 0,
@@ -327,13 +264,11 @@ console.log('Saved to Recent Analyses:', newAnalysis)
         transition={{
           duration: 0.4
         }}
-        className='w-full max-w-screen-2xl pb-10 mx-auto'
+        className='w-full max-w-7xl pb-10 mx-auto'
       >
-
         <AnalyzeHeader />
 
         {/* VALIDATION ERROR */}
-
         <AnimatePresence>
           {Object.keys(errors).length > 0 && (
             <motion.div
@@ -351,15 +286,12 @@ console.log('Saved to Recent Analyses:', newAnalysis)
               }}
               className='mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700 shadow-xs overflow-hidden'
             >
-              ⚠️ Please fill in all required fields
-              and upload an X-ray image to proceed
-              with AI Analysis.
+              ⚠️ Please fill in all required patient fields and upload an X-ray image to proceed with AI analysis.
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* BACKEND ERROR */}
-
         {apiError && (
           <motion.div
             initial={{
@@ -370,22 +302,19 @@ console.log('Saved to Recent Analyses:', newAnalysis)
               opacity: 1,
               y: 0
             }}
-            className='mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700'
+            className='mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 shadow-xs'
           >
             ⚠️ {apiError}
           </motion.div>
         )}
 
-        {/* MAIN CONTENT */}
-
-        <div className='mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12'>
-
+        {/* MAIN CONTENT GRID */}
+        <div className='mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 items-stretch'>
           {/* PATIENT INFORMATION */}
-
           <motion.section
             initial={{
               opacity: 0,
-              x: -20
+              x: -15
             }}
             animate={{
               opacity: 1,
@@ -395,24 +324,21 @@ console.log('Saved to Recent Analyses:', newAnalysis)
               duration: 0.4,
               delay: 0.1
             }}
-            className='flex flex-col justify-between rounded-xl border border-[#dceae6] bg-white p-5 shadow-sm shadow-[#1a5a49]/5 sm:p-8 lg:col-span-7'
+            className='flex flex-col justify-between rounded-2xl border border-[#dceae6] bg-white p-5 sm:p-6 lg:p-7 shadow-xs lg:col-span-7'
           >
-
             <PatientInformation
               patientData={patientData}
               onChange={handlePatientChange}
               onClear={handleClear}
               errors={errors}
             />
-
           </motion.section>
 
           {/* X-RAY UPLOAD */}
-
           <motion.section
             initial={{
               opacity: 0,
-              x: 20
+              x: 15
             }}
             animate={{
               opacity: 1,
@@ -422,15 +348,13 @@ console.log('Saved to Recent Analyses:', newAnalysis)
               duration: 0.4,
               delay: 0.1
             }}
-            className='flex flex-col justify-between rounded-xl border border-[#dceae6] bg-white p-5 shadow-sm shadow-[#1a5a49]/5 sm:p-8 lg:col-span-5'
+            className='flex flex-col justify-between rounded-2xl border border-[#dceae6] bg-white p-5 sm:p-6 lg:p-7 shadow-xs lg:col-span-5'
           >
-
             <XRayUpload
               file={xrayFile}
               onFileSelect={handleFileSelect}
               onRemove={() => {
                 setXrayFile(null)
-
                 setErrors(prev => ({
                   ...prev,
                   xrayFile: null
@@ -438,20 +362,17 @@ console.log('Saved to Recent Analyses:', newAnalysis)
               }}
               error={errors.xrayFile}
             />
-
           </motion.section>
-
         </div>
 
         {/* ANALYZE BUTTON */}
-
-        <AnalysisNextStep
-          onAnalyze={handleAnalyze}
-          isAnalyzing={isAnalyzing}
-        />
-
+        <div className="mt-6">
+          <AnalysisNextStep
+            onAnalyze={handleAnalyze}
+            isAnalyzing={isAnalyzing}
+          />
+        </div>
       </motion.div>
-
     </DashboardShell>
   )
 }
